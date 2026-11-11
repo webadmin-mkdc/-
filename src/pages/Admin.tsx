@@ -8,7 +8,7 @@ import { auth, db } from '../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { collection, addDoc, setDoc, updateDoc, doc, getDoc, getDocs, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, LogOut, Plus, Trash2, FileText, Video, Loader2, ShieldCheck, Copy, Check, Info, Users, RotateCcw, AlertTriangle, CheckSquare, Square, X, UserPlus, ArrowRight, Pencil } from 'lucide-react';
+import { Lock, LogOut, Plus, Trash2, FileText, Video, Loader2, ShieldCheck, Copy, Check, Info, Users, RotateCcw, AlertTriangle, CheckSquare, Square, X, UserPlus, ArrowRight, Pencil, Globe, ExternalLink, HelpCircle } from 'lucide-react';
 import { Bulletin, Sermon, AdminUser } from '../types';
 
 enum OperationType {
@@ -38,6 +38,14 @@ export default function Admin() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<'sermons' | 'bulletins' | 'admins'>('sermons');
   const [copiedUid, setCopiedUid] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+  const [showDomainGuide, setShowDomainGuide] = useState(false);
+  const [loginError, setLoginError] = useState<{
+    code: string;
+    message: string;
+    type: 'unauthorized_domain' | 'popup_blocked' | 'cancelled' | 'general';
+    hostname: string;
+  } | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -118,16 +126,20 @@ export default function Admin() {
       cleanupRef.current();
     }
 
+    setLoginError(null);
     setIsLoggingIn(true);
     let popupWindow: Window | null = null;
     const originalOpen = window.open;
 
     // Capture the popup reference opened by Firebase
     window.open = function (...args: any[]) {
-      // @ts-ignore
-      const win = originalOpen.apply(this, args);
-      popupWindow = win;
-      return win;
+      try {
+        const win = originalOpen.apply(window, args);
+        popupWindow = win;
+        return win;
+      } catch {
+        return originalOpen(...(args as [string, string, string]));
+      }
     };
 
     let isCleanedUp = false;
@@ -146,53 +158,54 @@ export default function Admin() {
     };
     cleanupRef.current = cleanup;
 
-    // Fast detector: check if popup was closed every 200ms
+    // Fast detector: check if popup was closed every 400ms
+    // Note: NEVER cleanup on catch, as cross-origin security errors can occur while popup is navigating!
     pollTimer = setInterval(() => {
       try {
-        if (popupWindow && popupWindow.closed) {
+        if (popupWindow && popupWindow.closed === true) {
           cleanup();
         }
       } catch {
-        // Fallback handled by focus/visibility
+        // Cross-origin access: popup is actively on accounts.google.com! Keep alive.
       }
-    }, 200);
+    }, 400);
 
-    // Focus detector: when user closes/cancels popup and clicks back to page
+    // Focus detector: when user closes popup and returns to tab
     const handleFocus = () => {
       setTimeout(() => {
         try {
-          if (!popupWindow || popupWindow.closed) {
+          if (popupWindow && popupWindow.closed === true) {
             cleanup();
           }
         } catch {
-          cleanup();
+          // Cross-origin: popup is still active. Keep alive.
         }
-      }, 300);
+      }, 500);
     };
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         setTimeout(() => {
           try {
-            if (!popupWindow || popupWindow.closed) {
+            if (popupWindow && popupWindow.closed === true) {
               cleanup();
             }
           } catch {
-            cleanup();
+            // Keep alive
           }
-        }, 300);
+        }, 500);
       }
     };
 
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // 5-second safety timeout if user closed popup and browser blocked all events
+    // 180-second safety timeout (3 minutes) - ensures user has plenty of time for 2FA/password
     const safetyTimer = setTimeout(() => {
       if (!auth.currentUser) {
         cleanup();
       }
-    }, 5000);
+    }, 180000);
 
     try {
       const provider = new GoogleAuthProvider();
@@ -200,7 +213,39 @@ export default function Admin() {
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      console.warn("Google sign-in was closed or cancelled:", error?.code || error?.message);
+      const code = error?.code || '';
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      console.warn("Google sign-in error:", code, error?.message);
+
+      if (code === 'auth/unauthorized-domain') {
+        setLoginError({
+          code,
+          message: '현재 호스팅 도메인이 Firebase 인증 승인 목록에 등록되어 있지 않습니다.',
+          type: 'unauthorized_domain',
+          hostname: currentHost
+        });
+      } else if (code === 'auth/popup-blocked') {
+        setLoginError({
+          code,
+          message: '브라우저 팝업이 차단되었습니다. 주소창에서 팝업 차단을 해제하고 다시 시도해 주세요.',
+          type: 'popup_blocked',
+          hostname: currentHost
+        });
+      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setLoginError({
+          code,
+          message: '구글 로그인 창이 닫혔거나 취소되었습니다.',
+          type: 'cancelled',
+          hostname: currentHost
+        });
+      } else {
+        setLoginError({
+          code: code || 'auth/unknown',
+          message: error?.message || '구글 로그인 중 오류가 발생했습니다.',
+          type: 'general',
+          hostname: currentHost
+        });
+      }
     } finally {
       clearTimeout(safetyTimer);
       cleanup();
@@ -259,23 +304,112 @@ export default function Admin() {
   }
 
   if (!user) {
+    const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isCustomDomain = currentHostname && currentHostname !== 'localhost' && !currentHostname.includes('127.0.0.1') && !currentHostname.includes('run.app');
+
     return (
-      <div className="max-w-md mx-auto px-6 sm:px-12 py-32">
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-20 sm:py-28">
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white p-8 sm:p-12 rounded-xl border border-brand-border shadow-xl text-center"
+          className="bg-white p-7 sm:p-10 rounded-2xl border border-brand-border shadow-xl text-center"
         >
-          <div className="w-16 h-16 bg-brand-bg text-brand-accent rounded-full flex items-center justify-center mx-auto mb-8 border border-brand-border">
+          <div className="w-16 h-16 bg-brand-bg text-brand-accent rounded-full flex items-center justify-center mx-auto mb-6 border border-brand-border shadow-xs">
             <Lock className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-serif font-bold mb-4 text-brand-primary">관리자 로그인</h2>
-          <p className="text-brand-sub mb-8 font-light leading-relaxed text-sm">
+          <h2 className="text-2xl font-serif font-bold mb-3 text-brand-primary">관리자 로그인</h2>
+          <p className="text-brand-sub mb-6 font-light leading-relaxed text-sm">
             교회 관리자 권한이 있는 구글 계정으로 <br /> 로그인해 주세요.
           </p>
+
+          {/* Login Error Alert */}
+          {loginError && (
+            <div className="mb-6 text-left">
+              {loginError.type === 'unauthorized_domain' ? (
+                <div className="p-4 sm:p-5 bg-amber-50 border border-amber-300 rounded-xl space-y-3 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-amber-900 text-sm">호스팅 도메인 승인 필요</h3>
+                      <p className="text-[11px] font-mono text-amber-700">오류 코드: auth/unauthorized-domain</p>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-amber-900 leading-relaxed font-light">
+                    현재 접속하신 호스팅 도메인(<strong>{loginError.hostname || currentHostname}</strong>)이 Firebase 인증(Authentication)의 <span className="font-semibold text-amber-950">[승인된 도메인]</span> 목록에 아직 등록되어 있지 않아 구글 로그인이 차단되었습니다.
+                  </p>
+
+                  <div className="bg-white p-3 rounded-lg border border-amber-200 text-xs space-y-2">
+                    <div className="font-semibold text-[11px] text-amber-900 flex items-center justify-between">
+                      <span>등록할 호스팅 도메인:</span>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(loginError.hostname || currentHostname);
+                          setCopiedDomain(true);
+                          setTimeout(() => setCopiedDomain(false), 2000);
+                        }}
+                        className="text-[11px] px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-medium flex items-center gap-1 transition-colors"
+                      >
+                        {copiedDomain ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedDomain ? '복사 완료!' : '도메인 복사'}</span>
+                      </button>
+                    </div>
+                    <div className="font-mono bg-amber-50/80 px-2.5 py-1.5 rounded text-amber-950 text-xs break-all border border-amber-200/60 font-semibold select-all">
+                      {loginError.hostname || currentHostname}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-amber-900 space-y-1.5 pt-1">
+                    <p className="font-bold text-[11.5px]">해결 방법 (1분 소요 / 최초 1회만 설정):</p>
+                    <ol className="list-decimal list-inside space-y-1 text-[11.5px] text-amber-800 font-light pl-1">
+                      <li>아래 버튼을 눌러 Firebase 콘솔 설정으로 이동합니다.</li>
+                      <li><strong>[Authorized domains (승인된 도메인)]</strong> 탭에서 <strong>[도메인 추가]</strong>를 누릅니다.</li>
+                      <li>복사한 도메인(<code>{loginError.hostname || currentHostname}</code>)을 입력하고 저장합니다.</li>
+                      <li>저장 즉시 이 페이지를 새로고침하여 로그인하시면 정상 작동합니다.</li>
+                    </ol>
+                  </div>
+
+                  <a
+                    href="https://console.firebase.google.com/project/gen-lang-client-0834354956/authentication/settings"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                  >
+                    <span>Firebase 콘솔 승인된 도메인 설정 바로가기</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              ) : loginError.type === 'popup_blocked' ? (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-xs text-rose-800">
+                  <div className="flex items-center gap-2 font-bold text-rose-900">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>팝업창이 차단되었습니다</span>
+                  </div>
+                  <p className="leading-relaxed font-light">
+                    웹 브라우저에서 구글 로그인 팝업창을 차단하였습니다. 브라우저 주소창 우측 상단의 팝업 차단 아이콘을 클릭하여 <strong>[항상 허용]</strong>으로 설정한 후 다시 시도해 주세요.
+                  </p>
+                </div>
+              ) : loginError.type === 'cancelled' ? (
+                <div className="p-3.5 bg-brand-bg border border-brand-border rounded-xl text-center text-xs text-brand-sub font-light">
+                  구글 로그인 창이 닫혔거나 취소되었습니다. 다시 시도해 주세요.
+                </div>
+              ) : (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5 text-xs text-rose-800">
+                  <div className="flex items-center gap-2 font-bold text-rose-900">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>로그인 실패 ({loginError.code})</span>
+                  </div>
+                  <p className="leading-relaxed font-light">{loginError.message}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           <button 
             onClick={handleLogin}
-            className="w-full bg-white border border-brand-border py-4 rounded-full flex items-center justify-center gap-3 text-brand-primary font-bold text-[11px] uppercase tracking-widest hover:bg-brand-bg transition-all shadow-sm"
+            disabled={isLoggingIn}
+            className="w-full bg-white border border-brand-border py-4 rounded-full flex items-center justify-center gap-3 text-brand-primary font-bold text-[11px] uppercase tracking-widest hover:bg-brand-bg transition-all shadow-sm active:scale-[0.99] disabled:opacity-70"
           >
             {isLoggingIn ? (
               <>
@@ -302,11 +436,76 @@ export default function Admin() {
             </div>
           )}
 
-          <div className="mt-8 p-4 bg-brand-bg rounded-lg border border-brand-border text-left space-y-1.5 text-xs text-brand-sub leading-relaxed font-light">
-            <p className="font-semibold text-brand-primary">새 관리자 등록 방법:</p>
-            <p>1. 기존 관리자(대표 관리자)로 로그인하신 후</p>
-            <p>2. <strong>[관리자 계정 관리]</strong> 메뉴에서 새 관리자의 구글 이메일을 등록해 주세요.</p>
-            <p>3. 등록 후 새 관리자분이 위 버튼을 눌러 로그인하시면 즉시 관리자 권한이 활성화됩니다.</p>
+          {/* 새 관리자 등록 안내 */}
+          <div className="mt-6 p-4 bg-brand-bg rounded-xl border border-brand-border text-left space-y-1.5 text-xs text-brand-sub leading-relaxed font-light">
+            <p className="font-semibold text-brand-primary flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-brand-accent shrink-0" />
+              <span>새 관리자 등록 안내</span>
+            </p>
+            <p>1. 기존 관리자(대표 관리자) 계정으로 로그인해 주세요.</p>
+            <p>2. <strong>[관리자 계정 관리]</strong> 메뉴에서 새 관리자의 구글 이메일을 등록합니다.</p>
+            <p>3. 등록 후 새 관리자분이 로그인하시면 즉시 관리자 권한이 부여됩니다.</p>
+          </div>
+
+          {/* 자체 호스팅 환경 도메인 안내 Accordion */}
+          <div className="mt-3 text-left">
+            <button
+              type="button"
+              onClick={() => setShowDomainGuide(!showDomainGuide)}
+              className="w-full py-2.5 px-3.5 rounded-xl border border-brand-border/70 hover:bg-brand-bg/50 transition-colors flex items-center justify-between text-xs text-brand-sub"
+            >
+              <span className="flex items-center gap-1.5 font-medium text-brand-primary">
+                <Globe className="w-3.5 h-3.5 text-brand-accent shrink-0" />
+                <span>자체 호스팅 / 외부 도메인 구글 로그인 설정 안내</span>
+              </span>
+              <span className="text-[11px] font-mono text-brand-muted">
+                {showDomainGuide ? '접기 ▲' : '열기 ▼'}
+              </span>
+            </button>
+
+            {showDomainGuide && (
+              <div className="mt-2 p-4 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2.5 animate-fadeIn">
+                <p className="leading-relaxed font-light">
+                  Firebase Authentication 보안 정책상, 웹사이트를 자체 호스팅하거나 커스텀 도메인(예: <code>{currentHostname || 'mkdc.org.au'}</code>)을 연결한 경우 해당 도메인을 Firebase에 등록해 주셔야 구글 로그인이 정상 작동합니다.
+                </p>
+                <div className="bg-white p-2.5 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                  <span className="text-[11px] text-amber-800">현재 접속 도메인:</span>
+                  <div className="flex items-center gap-1.5">
+                    <code className="font-mono text-xs font-bold text-amber-950 bg-amber-100/60 px-2 py-0.5 rounded">
+                      {currentHostname || '현재 도메인'}
+                    </code>
+                    {currentHostname && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentHostname);
+                          setCopiedDomain(true);
+                          setTimeout(() => setCopiedDomain(false), 2000);
+                        }}
+                        className="text-[11px] px-2 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-950 rounded font-medium"
+                      >
+                        {copiedDomain ? '복사됨!' : '복사'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1 text-[11px] text-amber-800 font-light">
+                  <p className="font-semibold text-amber-950">설정 순서:</p>
+                  <p>1. 아래 링크로 Firebase 콘솔의 [승인된 도메인] 페이지로 이동합니다.</p>
+                  <p>2. [도메인 추가]를 누르고 위 도메인을 붙여넣은 뒤 저장합니다.</p>
+                  <p className="text-[10px] text-amber-700">※ www가 포함된 주소와 미포함 주소(예: mkdc.org.au 및 www.mkdc.org.au)를 모두 사용하신다면 둘 다 추가해 주세요.</p>
+                </div>
+                <a
+                  href="https://console.firebase.google.com/project/gen-lang-client-0834354956/authentication/settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                >
+                  <span>Firebase 콘솔에서 도메인 승인하러 가기</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
