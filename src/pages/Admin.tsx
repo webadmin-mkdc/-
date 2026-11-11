@@ -8,8 +8,11 @@ import { auth, db } from '../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { collection, addDoc, setDoc, updateDoc, doc, getDoc, getDocs, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, LogOut, Plus, Trash2, FileText, Video, Loader2, ShieldCheck, Copy, Check, Info, Users, RotateCcw, AlertTriangle, CheckSquare, Square, X, UserPlus, ArrowRight, Pencil } from 'lucide-react';
+import { Lock, LogOut, Plus, Trash2, FileText, Video, Loader2, ShieldCheck, Copy, Check, Info, Users, RotateCcw, AlertTriangle, CheckSquare, Square, X, UserPlus, ArrowRight, Pencil, Camera, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { Bulletin, Sermon, AdminUser } from '../types';
+import staffPhotoDefault from '../assets/images/church_staff_group_1789372024709.jpg';
+import pastorPhotoDefault from '../assets/images/pastor_lee_photo_1789371007095.jpg';
+import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto, ChurchPhotos } from '../lib/photoService';
 
 enum OperationType {
   CREATE = 'create',
@@ -36,7 +39,7 @@ export default function Admin() {
   const [authLoading, setAuthLoading] = useState(true);
   const [checkingAdmin, setCheckingAdmin] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sermons' | 'bulletins' | 'admins'>('sermons');
+  const [activeTab, setActiveTab] = useState<'sermons' | 'bulletins' | 'photos' | 'admins'>('sermons');
   const [copiedUid, setCopiedUid] = useState(false);
 
   useEffect(() => {
@@ -414,6 +417,13 @@ export default function Admin() {
           주보 파일 관리
         </button>
         <button 
+          onClick={() => setActiveTab('photos')}
+          className={`pb-4 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'photos' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-brand-sub hover:text-brand-primary'}`}
+        >
+          <Camera className="w-3.5 h-3.5" />
+          <span>교회 사진 관리</span>
+        </button>
+        <button 
           onClick={() => setActiveTab('admins')}
           className={`pb-4 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'admins' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-brand-sub hover:text-brand-primary'}`}
         >
@@ -433,6 +443,8 @@ export default function Admin() {
             <BulletinManager />
           ) : activeTab === 'sermons' ? (
             <SermonManager />
+          ) : activeTab === 'photos' ? (
+            <PhotoManager isAdmin={isAdmin} />
           ) : (
             <AdminManager currentUser={user} />
           )}
@@ -2066,3 +2078,234 @@ function AdminManager({ currentUser }: { currentUser: User }) {
     </div>
   );
 }
+
+function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
+  const [photos, setPhotos] = useState<ChurchPhotos>({});
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const heroInputRef = useRef<HTMLInputElement>(null);
+  const staffInputRef = useRef<HTMLInputElement>(null);
+  const pastorInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToChurchPhotos((latest) => {
+      setPhotos(latest);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleUpload = async (key: 'heroPhoto' | 'staffPhoto' | 'pastorPhoto', file: File) => {
+    if (!isAdmin) {
+      setErrorMessage("사진 변경은 교회 관리자만 가능합니다.");
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage("이미지 파일(JPEG, PNG, WebP)만 등록 가능합니다.");
+      return;
+    }
+
+    try {
+      setLoadingKey(key);
+      setErrorMessage(null);
+      const dataUrl = await compressAndProcessImage(file);
+      await saveChurchPhoto(key, dataUrl, isAdmin);
+      setSuccessMessage("사진이 성공적으로 업데이트되었습니다. 사이트에 즉시 반영됩니다.");
+      setTimeout(() => setSuccessMessage(null), 3500);
+    } catch (err: unknown) {
+      console.error(err);
+      setErrorMessage("사진 저장 중 오류가 발생했습니다.");
+    } finally {
+      setLoadingKey(null);
+    }
+  };
+
+  const handleReset = async (key: 'heroPhoto' | 'staffPhoto' | 'pastorPhoto') => {
+    if (!isAdmin) return;
+    try {
+      setLoadingKey(key);
+      setErrorMessage(null);
+      await resetChurchPhoto(key, isAdmin);
+      setSuccessMessage("기본 사진으로 초기화되었습니다.");
+      setTimeout(() => setSuccessMessage(null), 3500);
+    } catch (err: unknown) {
+      console.error(err);
+      setErrorMessage("사진 초기화 중 오류가 발생했습니다.");
+    } finally {
+      setLoadingKey(null);
+    }
+  };
+
+  const photoCards = [
+    {
+      id: 'heroPhoto' as const,
+      title: '메인 홈페이지 심볼 / 로고',
+      description: '홈페이지 최상단 대표 비주얼 영역에 표시되는 교회 공식 심볼 이미지입니다.',
+      pageName: '홈페이지 메인 (Hero)',
+      pageLink: '/',
+      currentSrc: photos.heroPhoto || '/church_logo_green.svg',
+      fallbackSrc: '/church_logo_green.png',
+      hasCustom: !!photos.heroPhoto,
+      inputRef: heroInputRef,
+      aspect: 'aspect-square max-w-[200px]',
+      bg: 'bg-[#A5BC73]',
+    },
+    {
+      id: 'staffPhoto' as const,
+      title: '사역자 및 섬김이 단체 사진',
+      description: '교회소개 페이지의 공동체 비전 상단에 표시되는 사역자/섬김이 단체 사진입니다.',
+      pageName: '교회소개 페이지',
+      pageLink: '/about',
+      currentSrc: photos.staffPhoto || staffPhotoDefault,
+      fallbackSrc: '/church_staff.jpg',
+      hasCustom: !!photos.staffPhoto,
+      inputRef: staffInputRef,
+      aspect: 'aspect-[16/9] max-w-[280px]',
+      bg: 'bg-brand-bg',
+    },
+    {
+      id: 'pastorPhoto' as const,
+      title: '담임목사 프로필 사진',
+      description: '교회소개 페이지 목회비전 섹션의 담임목사 소개에 표시되는 프로필 사진입니다.',
+      pageName: '교회소개 페이지',
+      pageLink: '/about',
+      currentSrc: photos.pastorPhoto || pastorPhotoDefault,
+      fallbackSrc: '/pastor.jpg',
+      hasCustom: !!photos.pastorPhoto,
+      inputRef: pastorInputRef,
+      aspect: 'aspect-[3/4] max-w-[180px]',
+      bg: 'bg-brand-bg',
+    },
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Admin Notice */}
+      <div className="bg-[#FAF8F5] border border-brand-accent/30 rounded-2xl p-5 sm:p-6 shadow-sm flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-brand-primary text-brand-accent flex items-center justify-center shrink-0 shadow-xs">
+          <ShieldCheck className="w-5 h-5" />
+        </div>
+        <div className="flex-1 text-xs sm:text-sm text-brand-sub leading-relaxed">
+          <p className="font-bold text-brand-primary text-sm sm:text-base mb-1">
+            사진 변경 보안 및 관리 안내
+          </p>
+          <p>
+            사진 변경 기능은 <strong className="text-brand-primary">오직 교회 관리자</strong>만 권한이 부여되어 있습니다. 
+            일반 방문자에게는 사진 변경 버튼이 전혀 노출되지 않으며, 관리자 로그인 상태에서는 여기 관리자 페이지뿐만 아니라 
+            <strong> 홈페이지 메인</strong> 및 <strong>교회소개</strong> 페이지에서도 사진 우측 상단의 <strong>[사진 변경]</strong> 버튼이나 드래그 앤 드롭으로 언제든 편리하게 교체하실 수 있습니다.
+          </p>
+        </div>
+      </div>
+
+      {/* Status Messages */}
+      {successMessage && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-center gap-2 animate-fadeIn">
+          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Photo Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        {photoCards.map((card) => (
+          <div 
+            key={card.id} 
+            className="bg-white border border-brand-border rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-brand-border">
+                <span className="text-[10px] font-bold text-brand-accent uppercase tracking-widest block">
+                  {card.pageName}
+                </span>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${card.hasCustom ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-brand-bg text-brand-muted border-brand-border'}`}>
+                  {card.hasCustom ? '맞춤 등록 사진' : '기본 사진 사용 중'}
+                </span>
+              </div>
+
+              <h3 className="font-serif font-bold text-lg text-brand-primary mb-2">
+                {card.title}
+              </h3>
+              <p className="text-xs text-brand-muted font-light mb-6 leading-relaxed">
+                {card.description}
+              </p>
+
+              {/* Photo Preview Container */}
+              <div className="flex justify-center mb-6">
+                <div className={`w-full ${card.aspect} ${card.bg} rounded-2xl overflow-hidden shadow-md border border-brand-border relative flex items-center justify-center group`}>
+                  <img 
+                    src={card.currentSrc} 
+                    alt={card.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = card.fallbackSrc;
+                    }}
+                  />
+                  {loadingKey === card.id && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white z-10">
+                      <Loader2 className="w-6 h-6 animate-spin text-brand-accent" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-4 border-t border-brand-border">
+              <input 
+                ref={card.inputRef}
+                type="file" 
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(card.id, file);
+                }}
+                className="hidden" 
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={loadingKey === card.id}
+                  onClick={() => card.inputRef.current?.click()}
+                  className="flex-1 py-2.5 px-3 rounded-lg bg-brand-primary hover:bg-black text-white text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Camera className="w-3.5 h-3.5 text-brand-accent" />
+                  <span>사진 변경</span>
+                </button>
+
+                {card.hasCustom && (
+                  <button
+                    type="button"
+                    disabled={loadingKey === card.id}
+                    onClick={() => handleReset(card.id)}
+                    title="기본 사진으로 되돌리기"
+                    className="py-2.5 px-3 rounded-lg border border-brand-border hover:bg-brand-bg text-brand-sub text-xs font-medium transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>초기화</span>
+                  </button>
+                )}
+              </div>
+
+              <a
+                href={card.pageLink}
+                className="inline-flex items-center justify-center w-full py-1.5 text-[11px] text-brand-sub hover:text-brand-accent transition-colors gap-1"
+              >
+                <span>{card.pageName}에서 실시간 확인</span>
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

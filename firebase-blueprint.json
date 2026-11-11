@@ -36,6 +36,18 @@
         "addedBy": { "type": "string" }
       },
       "required": ["email"]
+    },
+    "site_settings": {
+      "title": "SiteSetting",
+      "description": "Church website settings including photos",
+      "type": "object",
+      "properties": {
+        "heroPhoto": { "type": "string" },
+        "staffPhoto": { "type": "string" },
+        "pastorPhoto": { "type": "string" },
+        "updatedAt": { "type": "number" },
+        "updatedBy": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -50,6 +62,10 @@
     "admins": {
       "schema": "admins",
       "description": "Collection of admin user IDs"
+    },
+    "site_settings": {
+      "schema": "site_settings",
+      "description": "Collection of church site settings and photos"
     }
   }
 }

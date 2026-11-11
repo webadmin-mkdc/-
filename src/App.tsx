@@ -12,8 +12,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { motion, AnimatePresence } from 'motion/react';
 import { Church, BookOpen, Video, Info, Lock, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from './lib/firebase';
+import { useAdminAuth } from './lib/useAdminAuth';
 import Home from './pages/Home';
 import Sermons from './pages/Sermons';
 import Bulletins from './pages/Bulletins';
@@ -24,13 +23,7 @@ import { cn } from './lib/utils';
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
-      setCurrentUser(u);
-    });
-  }, []);
+  const { user: currentUser, isAdmin } = useAdminAuth();
 
   const navItems = [
     { name: 'HOME', path: '/' },
@@ -83,8 +76,8 @@ function Navbar() {
             to="/admin" 
             className="ml-1 lg:ml-4 px-3 lg:px-4 py-1.5 border border-brand-primary text-[10px] lg:text-[11px] rounded-full hover:bg-brand-primary hover:text-white transition-all uppercase tracking-wider whitespace-nowrap shrink-0 flex items-center gap-1.5"
           >
-            {currentUser && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
-            <span>{currentUser ? 'ADMIN DASHBOARD' : 'ADMIN LOGIN'}</span>
+            {isAdmin && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
+            <span>{isAdmin ? 'ADMIN DASHBOARD' : (currentUser ? 'ADMIN' : 'ADMIN LOGIN')}</span>
           </Link>
         </div>
 
@@ -121,7 +114,7 @@ function Navbar() {
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-4 px-12 py-4 text-sm font-medium text-brand-sub"
             >
-              {currentUser ? 'ADMIN DASHBOARD (관리자 대시보드)' : 'ADMIN LOGIN (관리자 로그인)'}
+              {isAdmin ? 'ADMIN DASHBOARD (관리자 대시보드)' : (currentUser ? 'ADMIN (관리자)' : 'ADMIN LOGIN (관리자 로그인)')}
             </Link>
           </motion.div>
         )}

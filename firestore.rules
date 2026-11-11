@@ -89,5 +89,11 @@ service cloud.firestore {
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'name', 'uid']);
       allow delete: if isAdmin();
     }
+
+    // Collection: Site Settings (photos & site configuration)
+    match /site_settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

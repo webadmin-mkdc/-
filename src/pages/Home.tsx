@@ -3,48 +3,64 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Video, BookOpen, Clock, Camera, RotateCcw, Users, GraduationCap, Sparkles, MapPin, Heart, Baby, Phone, Mail, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import defaultHeroLogo from '../assets/images/church_green_logo_1789372670800.jpg';
+import { useAdminAuth } from '../lib/useAdminAuth';
+import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto } from '../lib/photoService';
 
 export default function Home() {
+  const { isAdmin } = useAdminAuth();
   const [heroPhoto, setHeroPhoto] = useState<string | null>(() => {
     return localStorage.getItem('church_hero_landing_photo');
   });
   const [isHeroDragging, setIsHeroDragging] = useState(false);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const unsub = subscribeToChurchPhotos((photos) => {
+      if (photos.heroPhoto !== undefined) {
+        setHeroPhoto(photos.heroPhoto);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleHeroFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
     const file = e.target.files?.[0];
     if (file) {
-      processHeroFile(file);
+      await processHeroFile(file);
     }
   };
 
-  const processHeroFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      localStorage.setItem('church_hero_landing_photo', result);
+  const processHeroFile = async (file: File) => {
+    if (!isAdmin) return;
+    try {
+      const result = await compressAndProcessImage(file);
+      await saveChurchPhoto('heroPhoto', result, isAdmin);
       setHeroPhoto(result);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Hero photo upload failed:", err);
+    }
   };
 
-  const handleHeroDrop = (e: React.DragEvent) => {
+  const handleHeroDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     setIsHeroDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      processHeroFile(file);
+      await processHeroFile(file);
     }
   };
 
-  const handleResetHeroPhoto = (e: React.MouseEvent) => {
+  const handleResetHeroPhoto = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    localStorage.removeItem('church_hero_landing_photo');
+    if (!isAdmin) return;
+    await resetChurchPhoto('heroPhoto', isAdmin);
     setHeroPhoto(null);
   };
   return (
@@ -116,11 +132,11 @@ export default function Home() {
           className="flex-1 relative w-full max-w-sm md:max-w-md lg:max-w-lg mx-auto"
         >
           <div 
-            onDragOver={(e) => { e.preventDefault(); setIsHeroDragging(true); }}
-            onDragLeave={() => setIsHeroDragging(false)}
-            onDrop={handleHeroDrop}
+            onDragOver={isAdmin ? (e) => { e.preventDefault(); setIsHeroDragging(true); } : undefined}
+            onDragLeave={isAdmin ? () => setIsHeroDragging(false) : undefined}
+            onDrop={isAdmin ? handleHeroDrop : undefined}
             className={`aspect-square rounded-3xl overflow-hidden shadow-2xl relative z-10 border transition-all duration-300 group bg-[#A5BC73] flex items-center justify-center ${
-              isHeroDragging ? 'border-white ring-4 ring-white/50 scale-[1.01]' : 'border-white/50'
+              isAdmin && isHeroDragging ? 'border-white ring-4 ring-white/50 scale-[1.01]' : 'border-white/50'
             }`}
           >
              <img 
@@ -133,48 +149,59 @@ export default function Home() {
                }}
              />
 
-             {/* Change Controls */}
-             <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-               {heroPhoto && (
+             {/* Change Controls - Only visible to Church Admins */}
+             {isAdmin && (
+               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                 {heroPhoto && (
+                   <button
+                     onClick={handleResetHeroPhoto}
+                     title="기본 이미지로 되돌리기"
+                     className="px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-brand-sub hover:text-brand-primary text-[11px] font-medium shadow-md border border-brand-border flex items-center gap-1.5 transition-all cursor-pointer"
+                   >
+                     <RotateCcw className="w-3.5 h-3.5" />
+                     <span>초기화</span>
+                   </button>
+                 )}
                  <button
-                   onClick={handleResetHeroPhoto}
-                   title="기본 이미지로 되돌리기"
-                   className="px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-brand-sub hover:text-brand-primary text-[11px] font-medium shadow-md border border-brand-border flex items-center gap-1.5 transition-all cursor-pointer"
+                   onClick={() => heroFileInputRef.current?.click()}
+                   title="소장하신 원본 로고 이미지(녹색.png)를 선택하여 바로 적용합니다"
+                   className="px-3.5 py-1.5 rounded-full bg-brand-primary/90 hover:bg-brand-primary text-white text-[11px] font-medium shadow-lg backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer ring-1 ring-white/30"
                  >
-                   <RotateCcw className="w-3.5 h-3.5" />
-                   <span>초기화</span>
+                   <Camera className="w-3.5 h-3.5 text-brand-accent" />
+                   <span>사진 변경</span>
                  </button>
-               )}
-               <button
-                 onClick={() => heroFileInputRef.current?.click()}
-                 title="소장하신 원본 로고 이미지(녹색.png)를 선택하여 바로 적용합니다"
-                 className="px-3.5 py-1.5 rounded-full bg-brand-primary/90 hover:bg-brand-primary text-white text-[11px] font-medium shadow-lg backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer"
-               >
-                 <Camera className="w-3.5 h-3.5 text-brand-accent" />
-                 <span>사진 변경</span>
-               </button>
-             </div>
+               </div>
+             )}
 
-             {/* Drag Overlay */}
-             {isHeroDragging && (
+             {/* Drag Overlay - Only for Admins */}
+             {isAdmin && isHeroDragging && (
                <div className="absolute inset-0 bg-[#7B954E]/85 backdrop-blur-sm flex flex-col items-center justify-center text-white z-30 pointer-events-none">
                  <Camera className="w-12 h-12 text-white mb-2 animate-bounce" />
                  <p className="text-sm font-medium">여기에 녹색.png 파일을 놓아주세요</p>
                </div>
              )}
 
-             <input 
-               ref={heroFileInputRef}
-               type="file" 
-               accept="image/*" 
-               onChange={handleHeroFileChange}
-               className="hidden" 
-             />
+             {isAdmin && (
+               <input 
+                 ref={heroFileInputRef}
+                 type="file" 
+                 accept="image/*" 
+                 onChange={handleHeroFileChange}
+                 className="hidden" 
+               />
+             )}
           </div>
           <div className="absolute -top-10 -right-10 w-64 h-64 bg-[#9CB570]/20 rounded-full -z-0 blur-2xl"></div>
           <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-brand-accent/15 rounded-full -z-0 blur-xl"></div>
           <p className="text-[11px] text-brand-sub text-center mt-3 font-light">
-            멜번제자교회 공식 심볼 · 상단 <strong>사진 변경</strong> 버튼 또는 드래그 앤 드롭으로 원본을 등록하실 수 있습니다.
+            {isAdmin ? (
+              <>
+                <span className="text-brand-accent font-medium mr-1.5">[관리자 전용]</span>
+                멜번제자교회 공식 심볼 · 상단 <strong>사진 변경</strong> 버튼 또는 드래그 앤 드롭으로 원본을 등록하실 수 있습니다.
+              </>
+            ) : (
+              <span>멜번제자교회 공식 심볼</span>
+            )}
           </p>
         </motion.div>
       </section>

@@ -3,13 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Phone, Mail, User, Camera, RotateCcw, Church, ExternalLink } from 'lucide-react';
 import pastorPhoto from '../assets/images/pastor_lee_photo_1789371007095.jpg';
 import staffPhoto from '../assets/images/church_staff_group_1789372024709.jpg';
+import { useAdminAuth } from '../lib/useAdminAuth';
+import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto } from '../lib/photoService';
 
 export default function About() {
+  const { isAdmin } = useAdminAuth();
+
   const [customPhoto, setCustomPhoto] = useState<string | null>(() => {
     return localStorage.getItem('pastor_custom_photo');
   });
@@ -23,67 +27,87 @@ export default function About() {
   const [isStaffDragging, setIsStaffDragging] = useState(false);
   const staffFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleStaffFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const unsub = subscribeToChurchPhotos((photos) => {
+      if (photos.staffPhoto !== undefined) {
+        setCustomStaffPhoto(photos.staffPhoto);
+      }
+      if (photos.pastorPhoto !== undefined) {
+        setCustomPhoto(photos.pastorPhoto);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleStaffFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
     const file = e.target.files?.[0];
     if (file) {
-      processStaffFile(file);
+      await processStaffFile(file);
     }
   };
 
-  const processStaffFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      localStorage.setItem('church_custom_staff_photo', result);
+  const processStaffFile = async (file: File) => {
+    if (!isAdmin) return;
+    try {
+      const result = await compressAndProcessImage(file);
+      await saveChurchPhoto('staffPhoto', result, isAdmin);
       setCustomStaffPhoto(result);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Staff photo upload failed:", err);
+    }
   };
 
-  const handleStaffDrop = (e: React.DragEvent) => {
+  const handleStaffDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     setIsStaffDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      processStaffFile(file);
+      await processStaffFile(file);
     }
   };
 
-  const handleResetStaffPhoto = (e: React.MouseEvent) => {
+  const handleResetStaffPhoto = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    localStorage.removeItem('church_custom_staff_photo');
+    if (!isAdmin) return;
+    await resetChurchPhoto('staffPhoto', isAdmin);
     setCustomStaffPhoto(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
     const file = e.target.files?.[0];
     if (file) {
-      processFile(file);
+      await processFile(file);
     }
   };
 
-  const processFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      localStorage.setItem('pastor_custom_photo', result);
+  const processFile = async (file: File) => {
+    if (!isAdmin) return;
+    try {
+      const result = await compressAndProcessImage(file);
+      await saveChurchPhoto('pastorPhoto', result, isAdmin);
       setCustomPhoto(result);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Pastor photo upload failed:", err);
+    }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      processFile(file);
+      await processFile(file);
     }
   };
 
-  const handleResetPhoto = (e: React.MouseEvent) => {
+  const handleResetPhoto = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    localStorage.removeItem('pastor_custom_photo');
+    if (!isAdmin) return;
+    await resetChurchPhoto('pastorPhoto', isAdmin);
     setCustomPhoto(null);
   };
   return (
@@ -123,11 +147,11 @@ export default function About() {
           {/* Leaders & Staff Group Photo */}
           <div className="mb-10 sm:mb-14">
             <div 
-              onDragOver={(e) => { e.preventDefault(); setIsStaffDragging(true); }}
-              onDragLeave={() => setIsStaffDragging(false)}
-              onDrop={handleStaffDrop}
+              onDragOver={isAdmin ? (e) => { e.preventDefault(); setIsStaffDragging(true); } : undefined}
+              onDragLeave={isAdmin ? () => setIsStaffDragging(false) : undefined}
+              onDrop={isAdmin ? handleStaffDrop : undefined}
               className={`aspect-[16/9] rounded-2xl overflow-hidden shadow-xl border relative bg-brand-bg group transition-all duration-300 ${
-                isStaffDragging ? 'border-brand-accent ring-2 ring-brand-accent scale-[1.01]' : 'border-brand-border'
+                isAdmin && isStaffDragging ? 'border-brand-accent ring-2 ring-brand-accent scale-[1.01]' : 'border-brand-border'
               }`}
             >
               <img 
@@ -140,46 +164,57 @@ export default function About() {
                 }}
               />
 
-              {/* Photo Change Controls */}
-              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 flex items-center gap-1.5 sm:gap-2">
-                {customStaffPhoto && (
+              {/* Photo Change Controls - Only visible to Church Admins */}
+              {isAdmin && (
+                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 flex items-center gap-1.5 sm:gap-2">
+                  {customStaffPhoto && (
+                    <button
+                      onClick={handleResetStaffPhoto}
+                      title="기본 사진으로 되돌리기"
+                      className="px-2.5 sm:px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-brand-sub hover:text-brand-primary text-[10px] sm:text-[11px] font-medium shadow-md border border-brand-border flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>초기화</span>
+                    </button>
+                  )}
                   <button
-                    onClick={handleResetStaffPhoto}
-                    title="기본 사진으로 되돌리기"
-                    className="px-2.5 sm:px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-brand-sub hover:text-brand-primary text-[10px] sm:text-[11px] font-medium shadow-md border border-brand-border flex items-center gap-1.5 transition-all cursor-pointer"
+                    onClick={() => staffFileInputRef.current?.click()}
+                    title="소장하신 원본 단체 사진 파일(JPEG, PNG)을 선택하여 바로 적용합니다"
+                    className="px-3 sm:px-3.5 py-1.5 rounded-full bg-brand-primary/90 hover:bg-brand-primary text-white text-[10px] sm:text-[11px] font-medium shadow-lg backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer ring-1 ring-white/30"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>초기화</span>
+                    <Camera className="w-3.5 h-3.5 text-brand-accent" />
+                    <span>사진 변경</span>
                   </button>
-                )}
-                <button
-                  onClick={() => staffFileInputRef.current?.click()}
-                  title="소장하신 원본 단체 사진 파일(JPEG, PNG)을 선택하여 바로 적용합니다"
-                  className="px-3 sm:px-3.5 py-1.5 rounded-full bg-brand-primary/90 hover:bg-brand-primary text-white text-[10px] sm:text-[11px] font-medium shadow-lg backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Camera className="w-3.5 h-3.5 text-brand-accent" />
-                  <span>사진 변경</span>
-                </button>
-              </div>
+                </div>
+              )}
 
-              {/* Drag Over Overlay */}
-              {isStaffDragging && (
+              {/* Drag Over Overlay - Only for Admins */}
+              {isAdmin && isStaffDragging && (
                 <div className="absolute inset-0 bg-brand-primary/70 backdrop-blur-sm flex flex-col items-center justify-center text-white z-20 pointer-events-none">
                   <Camera className="w-10 h-10 text-brand-accent mb-2 animate-bounce" />
                   <p className="text-sm font-medium">여기에 사진 파일을 놓아주세요</p>
                 </div>
               )}
 
-              <input 
-                ref={staffFileInputRef}
-                type="file" 
-                accept="image/*" 
-                onChange={handleStaffFileChange}
-                className="hidden" 
-              />
+              {isAdmin && (
+                <input 
+                  ref={staffFileInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleStaffFileChange}
+                  className="hidden" 
+                />
+              )}
             </div>
             <p className="text-[11px] text-brand-sub text-center mt-2.5 font-light break-keep">
-              멜번제자교회 공동체 · 우측 상단 <strong>사진 변경</strong> 버튼으로 소장하신 원본 사진을 언제든 등록하실 수 있습니다.
+              {isAdmin ? (
+                <>
+                  <span className="text-brand-accent font-medium mr-1.5">[관리자 전용]</span>
+                  멜번제자교회 공동체 · 우측 상단 <strong>사진 변경</strong> 버튼으로 소장하신 원본 사진을 언제든 등록하실 수 있습니다.
+                </>
+              ) : (
+                <span>멜번제자교회 사역자 및 섬김이 공동체</span>
+              )}
             </p>
           </div>
 
@@ -363,11 +398,11 @@ export default function About() {
 
           <div className="w-full max-w-sm sm:max-w-md lg:max-w-none lg:w-[420px] mx-auto lg:mx-0 shrink-0 lg:sticky lg:top-28 order-1 lg:order-2">
              <div 
-               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-               onDragLeave={() => setIsDragging(false)}
-               onDrop={handleDrop}
+               onDragOver={isAdmin ? (e) => { e.preventDefault(); setIsDragging(true); } : undefined}
+               onDragLeave={isAdmin ? () => setIsDragging(false) : undefined}
+               onDrop={isAdmin ? handleDrop : undefined}
                className={`aspect-[3/4] rounded-xl overflow-hidden shadow-xl border relative bg-brand-bg group transition-all duration-300 ${
-                 isDragging ? 'border-brand-accent ring-2 ring-brand-accent scale-[1.01]' : 'border-brand-border'
+                 isAdmin && isDragging ? 'border-brand-accent ring-2 ring-brand-accent scale-[1.01]' : 'border-brand-border'
                }`}
              >
                <img 
@@ -381,46 +416,57 @@ export default function About() {
                />
                <div className="absolute inset-0 border-[12px] sm:border-[16px] md:border-[20px] border-white/10 pointer-events-none"></div>
 
-               {/* Photo Change Controls */}
-               <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 flex items-center gap-1.5 sm:gap-2">
-                 {customPhoto && (
+               {/* Photo Change Controls - Only visible to Church Admins */}
+               {isAdmin && (
+                 <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 flex items-center gap-1.5 sm:gap-2">
+                   {customPhoto && (
+                     <button
+                       onClick={handleResetPhoto}
+                       title="기본 사진으로 되돌리기"
+                       className="px-2.5 sm:px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-brand-sub hover:text-brand-primary text-[10px] sm:text-[11px] font-medium shadow-md border border-brand-border flex items-center gap-1.5 transition-all cursor-pointer"
+                     >
+                       <RotateCcw className="w-3.5 h-3.5" />
+                       <span>초기화</span>
+                     </button>
+                   )}
                    <button
-                     onClick={handleResetPhoto}
-                     title="기본 사진으로 되돌리기"
-                     className="px-2.5 sm:px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md text-brand-sub hover:text-brand-primary text-[10px] sm:text-[11px] font-medium shadow-md border border-brand-border flex items-center gap-1.5 transition-all cursor-pointer"
+                     onClick={() => fileInputRef.current?.click()}
+                     title="소장하신 원본 사진 파일(JPEG, PNG)을 선택하여 바로 적용합니다"
+                     className="px-3 sm:px-3.5 py-1.5 rounded-full bg-brand-primary/90 hover:bg-brand-primary text-white text-[10px] sm:text-[11px] font-medium shadow-lg backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer ring-1 ring-white/30"
                    >
-                     <RotateCcw className="w-3.5 h-3.5" />
-                     <span>초기화</span>
+                     <Camera className="w-3.5 h-3.5 text-brand-accent" />
+                     <span>사진 변경</span>
                    </button>
-                 )}
-                 <button
-                   onClick={() => fileInputRef.current?.click()}
-                   title="소장하신 원본 사진 파일(JPEG, PNG)을 선택하여 바로 적용합니다"
-                   className="px-3 sm:px-3.5 py-1.5 rounded-full bg-brand-primary/90 hover:bg-brand-primary text-white text-[10px] sm:text-[11px] font-medium shadow-lg backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer"
-                 >
-                   <Camera className="w-3.5 h-3.5 text-brand-accent" />
-                   <span>사진 변경</span>
-                 </button>
-               </div>
+                 </div>
+               )}
 
-               {/* Drag Over Overlay */}
-               {isDragging && (
+               {/* Drag Over Overlay - Only for Admins */}
+               {isAdmin && isDragging && (
                  <div className="absolute inset-0 bg-brand-primary/70 backdrop-blur-sm flex flex-col items-center justify-center text-white z-20 pointer-events-none">
                    <Camera className="w-10 h-10 text-brand-accent mb-2 animate-bounce" />
                    <p className="text-sm font-medium">여기에 사진 파일을 놓아주세요</p>
                  </div>
                )}
 
-               <input 
-                 ref={fileInputRef}
-                 type="file" 
-                 accept="image/*" 
-                 onChange={handleFileChange}
-                 className="hidden" 
-               />
+               {isAdmin && (
+                 <input 
+                   ref={fileInputRef}
+                   type="file" 
+                   accept="image/*" 
+                   onChange={handleFileChange}
+                   className="hidden" 
+                 />
+               )}
              </div>
              <p className="text-[11px] text-brand-sub text-center mt-2.5 sm:mt-3 font-light break-keep">
-               소장하고 계신 원본 사진을 <strong>사진 변경</strong> 버튼을 눌러 바로 등록하실 수 있습니다.
+               {isAdmin ? (
+                 <>
+                   <span className="text-brand-accent font-medium mr-1.5">[관리자 전용]</span>
+                   소장하고 계신 원본 사진을 <strong>사진 변경</strong> 버튼을 눌러 바로 등록하실 수 있습니다.
+                 </>
+               ) : (
+                 <span>멜번제자교회 담임목사 이치형</span>
+               )}
              </p>
           </div>
         </div>
