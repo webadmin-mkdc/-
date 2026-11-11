@@ -237,7 +237,7 @@ export default function Home() {
             <h3 className="text-xl font-serif mb-6 italic">예배 시간 안내</h3>
             <div className="space-y-3.5 text-[13px] font-light">
               <div className="flex flex-row md:flex-col lg:flex-col xl:flex-row justify-between md:items-start lg:items-start xl:items-center border-b border-white/10 pb-2.5 gap-1">
-                <span className="text-white/90">주일1부 예배(교육관)</span>
+                <span className="text-white/90">주일1부 예배(본당)</span>
                 <span className="font-medium text-brand-accent">11:45 AM</span>
               </div>
               <div className="flex flex-row md:flex-col lg:flex-col xl:flex-row justify-between md:items-start lg:items-start xl:items-center border-b border-white/10 pb-2.5 gap-1">
@@ -245,7 +245,7 @@ export default function Home() {
                 <span className="font-medium text-brand-accent">1:45 PM</span>
               </div>
               <div className="flex flex-row md:flex-col lg:flex-col xl:flex-row justify-between md:items-start lg:items-start xl:items-center border-b border-white/10 pb-2.5 gap-1">
-                <span className="text-white/90">금요기도회(교육관)</span>
+                <span className="text-white/90">금요기도회(본당)</span>
                 <span className="font-medium text-brand-accent">7:30 PM</span>
               </div>
             </div>
@@ -388,7 +388,7 @@ export default function Home() {
                         </div>
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <MapPin className="w-3.5 h-3.5 text-brand-accent shrink-0" />
-                          <span className="whitespace-nowrap"><strong className="font-medium text-brand-primary">장소:</strong> 교육관</span>
+                          <span className="whitespace-nowrap"><strong className="font-medium text-brand-primary">장소:</strong> 학생부실</span>
                         </div>
                       </div>
                     </div>
@@ -443,7 +443,7 @@ export default function Home() {
                       <span>모임장소</span>
                     </div>
                     <span className="font-medium text-brand-primary text-[13.5px] sm:text-[13px] whitespace-nowrap">
-                      교육관
+                      청년부실
                     </span>
                   </div>
 
@@ -516,10 +516,10 @@ export default function Home() {
                     <div className="flex-1 min-w-0">
                       <span className="text-[10.5px] font-bold text-brand-sub uppercase tracking-wider block mb-1">전화번호</span>
                       <a 
-                        href="tel:0425773914" 
+                        href="tel:0401800109" 
                         className="text-brand-primary font-medium text-sm sm:text-[15px] hover:text-brand-accent transition-colors block leading-snug"
                       >
-                        0425 773 914
+                        0401 800 109
                       </a>
                     </div>
                   </div>

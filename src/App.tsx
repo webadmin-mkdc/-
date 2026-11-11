@@ -157,7 +157,7 @@ function Footer() {
           <div className="flex items-center gap-2 whitespace-nowrap">
             <span className="font-semibold text-brand-primary inline-block w-[4.5rem]">TEL</span>
             <span className="text-brand-muted">:</span>
-            <a href="tel:0425773914" className="hover:text-brand-accent transition-colors">0425 773 914</a>
+            <a href="tel:0401800109" className="hover:text-brand-accent transition-colors">0401 800 109</a>
           </div>
         </div>
         <div className="text-[10px] text-[#B2B2A5] italic text-center lg:text-right whitespace-nowrap">

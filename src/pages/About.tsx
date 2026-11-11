@@ -504,7 +504,7 @@ export default function About() {
                 </div>
                 <div>
                   <h4 className="text-[11px] font-bold text-brand-primary uppercase tracking-widest mb-1.5 sm:mb-2">전화번호</h4>
-                  <p className="text-brand-muted font-light text-sm italic">0425 773 914</p>
+                  <a href="tel:0401800109" className="text-brand-muted font-light text-sm italic hover:text-brand-accent transition-colors block">0401 800 109</a>
                 </div>
               </div>
 
