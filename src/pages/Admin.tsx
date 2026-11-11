@@ -8,11 +8,11 @@ import { auth, db } from '../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { collection, addDoc, setDoc, updateDoc, doc, getDoc, getDocs, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, LogOut, Plus, Trash2, FileText, Video, Loader2, ShieldCheck, Copy, Check, Info, Users, RotateCcw, AlertTriangle, CheckSquare, Square, X, UserPlus, ArrowRight, Pencil, Camera, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Lock, LogOut, Plus, Trash2, FileText, Video, Loader2, ShieldCheck, Copy, Check, Info, Users, RotateCcw, AlertTriangle, CheckSquare, Square, X, UserPlus, ArrowRight, Pencil, Camera, Image as ImageIcon, ExternalLink, CloudUpload, Smartphone } from 'lucide-react';
 import { Bulletin, Sermon, AdminUser } from '../types';
 import staffPhotoDefault from '../assets/images/church_staff_group_1789372024709.jpg';
 import pastorPhotoDefault from '../assets/images/pastor_lee_photo_1789371007095.jpg';
-import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto, ChurchPhotos } from '../lib/photoService';
+import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto, syncLocalPhotosToFirestore, ChurchPhotos } from '../lib/photoService';
 
 enum OperationType {
   CREATE = 'create',
@@ -2082,6 +2082,7 @@ function AdminManager({ currentUser }: { currentUser: User }) {
 function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
   const [photos, setPhotos] = useState<ChurchPhotos>({});
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -2095,6 +2096,42 @@ function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
     });
     return () => unsub();
   }, []);
+
+  // Auto-sync any photos in this browser's localStorage to Firestore cloud
+  useEffect(() => {
+    if (isAdmin) {
+      syncLocalPhotosToFirestore(isAdmin)
+        .then(({ syncedCount }) => {
+          if (syncedCount > 0) {
+            setSuccessMessage(`${syncedCount}개의 사진이 클라우드(모바일 포함)로 자동 동기화되었습니다.`);
+            setTimeout(() => setSuccessMessage(null), 4000);
+          }
+        })
+        .catch((err) => console.warn("Auto-sync error:", err));
+    }
+  }, [isAdmin]);
+
+  const handleSyncAll = async () => {
+    if (!isAdmin) return;
+    try {
+      setSyncing(true);
+      setErrorMessage(null);
+      const { syncedCount, errors } = await syncLocalPhotosToFirestore(isAdmin);
+      if (errors.length > 0) {
+        setErrorMessage(`동기화 중 일부 오류가 발생했습니다: ${errors.join(', ')}`);
+      } else if (syncedCount > 0) {
+        setSuccessMessage(`${syncedCount}개의 사진이 클라우드에 성공적으로 업로드되었습니다! 이제 모바일 기기에서도 동일하게 표시됩니다.`);
+      } else {
+        setSuccessMessage("현재 모든 사진이 이미 클라우드 및 모바일과 최신 상태로 동기화되어 있습니다.");
+      }
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err: unknown) {
+      console.error(err);
+      setErrorMessage("클라우드 동기화 중 오류가 발생했습니다.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleUpload = async (key: 'heroPhoto' | 'staffPhoto' | 'pastorPhoto', file: File) => {
     if (!isAdmin) {
@@ -2111,11 +2148,11 @@ function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
       setErrorMessage(null);
       const dataUrl = await compressAndProcessImage(file);
       await saveChurchPhoto(key, dataUrl, isAdmin);
-      setSuccessMessage("사진이 성공적으로 업데이트되었습니다. 사이트에 즉시 반영됩니다.");
-      setTimeout(() => setSuccessMessage(null), 3500);
+      setSuccessMessage("사진이 클라우드에 성공적으로 저장되었습니다. 모바일 및 모든 방문자 기기에 즉시 반영됩니다.");
+      setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: unknown) {
       console.error(err);
-      setErrorMessage("사진 저장 중 오류가 발생했습니다.");
+      setErrorMessage(`사진 저장 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoadingKey(null);
     }
@@ -2127,7 +2164,7 @@ function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
       setLoadingKey(key);
       setErrorMessage(null);
       await resetChurchPhoto(key, isAdmin);
-      setSuccessMessage("기본 사진으로 초기화되었습니다.");
+      setSuccessMessage("기본 사진으로 초기화되었습니다 (모바일 동기화 완료).");
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: unknown) {
       console.error(err);
@@ -2181,6 +2218,36 @@ function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="space-y-8">
+      {/* Mobile Cloud Sync Banner */}
+      <div className="bg-emerald-50 border border-emerald-200/90 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Smartphone className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-bold text-emerald-950 text-sm sm:text-base flex items-center gap-2">
+              <span>모바일 기기 실시간 동기화 지원</span>
+              <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                Cloud Sync
+              </span>
+            </h4>
+            <p className="text-xs text-emerald-800 font-light mt-0.5 leading-relaxed">
+              PC에서 등록한 사진이 모바일 기기(스마트폰/태블릿) 및 모든 방문자에게 실시간으로 동일하게 반영됩니다. 
+              스마트폰에서 사진이 아직 기본값으로 보인다면 우측 <strong>[모바일/클라우드 전체 동기화]</strong> 버튼을 한 번 눌러주세요.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={syncing}
+          onClick={handleSyncAll}
+          className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50"
+        >
+          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
+          <span>모바일/클라우드 전체 동기화</span>
+        </button>
+      </div>
+
       {/* Admin Notice */}
       <div className="bg-[#FAF8F5] border border-brand-accent/30 rounded-2xl p-5 sm:p-6 shadow-sm flex items-start gap-4">
         <div className="w-10 h-10 rounded-xl bg-brand-primary text-brand-accent flex items-center justify-center shrink-0 shadow-xs">

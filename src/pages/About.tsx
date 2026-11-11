@@ -9,7 +9,7 @@ import { MapPin, Phone, Mail, User, Camera, RotateCcw, Church, ExternalLink } fr
 import pastorPhoto from '../assets/images/pastor_lee_photo_1789371007095.jpg';
 import staffPhoto from '../assets/images/church_staff_group_1789372024709.jpg';
 import { useAdminAuth } from '../lib/useAdminAuth';
-import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto } from '../lib/photoService';
+import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto, syncLocalPhotosToFirestore } from '../lib/photoService';
 
 export default function About() {
   const { isAdmin } = useAdminAuth();
@@ -38,6 +38,12 @@ export default function About() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      syncLocalPhotosToFirestore(isAdmin).catch((e) => console.warn("Auto sync failed:", e));
+    }
+  }, [isAdmin]);
 
   const handleStaffFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAdmin) return;

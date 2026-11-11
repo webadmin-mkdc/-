@@ -9,7 +9,7 @@ import { ArrowRight, Video, BookOpen, Clock, Camera, RotateCcw, Users, Graduatio
 import { Link } from 'react-router-dom';
 import defaultHeroLogo from '../assets/images/church_green_logo_1789372670800.jpg';
 import { useAdminAuth } from '../lib/useAdminAuth';
-import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto } from '../lib/photoService';
+import { subscribeToChurchPhotos, compressAndProcessImage, saveChurchPhoto, resetChurchPhoto, syncLocalPhotosToFirestore } from '../lib/photoService';
 
 export default function Home() {
   const { isAdmin } = useAdminAuth();
@@ -27,6 +27,12 @@ export default function Home() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      syncLocalPhotosToFirestore(isAdmin).catch((e) => console.warn("Auto sync failed:", e));
+    }
+  }, [isAdmin]);
 
   const handleHeroFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAdmin) return;
