@@ -206,15 +206,8 @@ export default function About() {
                 />
               )}
             </div>
-            <p className="text-[11px] text-brand-sub text-center mt-2.5 font-light break-keep">
-              {isAdmin ? (
-                <>
-                  <span className="text-brand-accent font-medium mr-1.5">[관리자 전용]</span>
-                  멜번제자교회 공동체 · 우측 상단 <strong>사진 변경</strong> 버튼으로 소장하신 원본 사진을 언제든 등록하실 수 있습니다.
-                </>
-              ) : (
-                <span>멜번제자교회 사역자 및 섬김이 공동체</span>
-              )}
+            <p className="text-[11px] text-brand-sub text-center mt-2.5 font-light tracking-wide">
+              사역자
             </p>
           </div>
 
@@ -458,15 +451,8 @@ export default function About() {
                  />
                )}
              </div>
-             <p className="text-[11px] text-brand-sub text-center mt-2.5 sm:mt-3 font-light break-keep">
-               {isAdmin ? (
-                 <>
-                   <span className="text-brand-accent font-medium mr-1.5">[관리자 전용]</span>
-                   소장하고 계신 원본 사진을 <strong>사진 변경</strong> 버튼을 눌러 바로 등록하실 수 있습니다.
-                 </>
-               ) : (
-                 <span>멜번제자교회 담임목사 이치형</span>
-               )}
+             <p className="text-[11px] text-brand-sub text-center mt-2.5 sm:mt-3 font-light tracking-wide">
+               담임목사 이치형
              </p>
           </div>
         </div>

@@ -2153,8 +2153,8 @@ function PhotoManager({ isAdmin }: { isAdmin: boolean }) {
     },
     {
       id: 'staffPhoto' as const,
-      title: '사역자 및 섬김이 단체 사진',
-      description: '교회소개 페이지의 공동체 비전 상단에 표시되는 사역자/섬김이 단체 사진입니다.',
+      title: '사역자 단체 사진',
+      description: '교회소개 페이지의 공동체 비전 상단에 표시되는 사역자 단체 사진입니다.',
       pageName: '교회소개 페이지',
       pageLink: '/about',
       currentSrc: photos.staffPhoto || staffPhotoDefault,

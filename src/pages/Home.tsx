@@ -192,17 +192,6 @@ export default function Home() {
              )}
           </div>
           <div className="absolute -top-10 -right-10 w-64 h-64 bg-[#9CB570]/20 rounded-full -z-0 blur-2xl"></div>
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-brand-accent/15 rounded-full -z-0 blur-xl"></div>
-          <p className="text-[11px] text-brand-sub text-center mt-3 font-light">
-            {isAdmin ? (
-              <>
-                <span className="text-brand-accent font-medium mr-1.5">[관리자 전용]</span>
-                멜번제자교회 공식 심볼 · 상단 <strong>사진 변경</strong> 버튼 또는 드래그 앤 드롭으로 원본을 등록하실 수 있습니다.
-              </>
-            ) : (
-              <span>멜번제자교회 공식 심볼</span>
-            )}
-          </p>
         </motion.div>
       </section>
 
