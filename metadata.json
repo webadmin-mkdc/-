@@ -1,0 +1,8 @@
+{
+  "name": "Remix 멜번제자교회_웹어드민으로 작업",
+  "description": "멜번 제자교회(Melbourne Disciple Church)의 공식 웹사이트입니다. 심플하고 세련된 디자인으로 주보와 설교 영상을 제공합니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

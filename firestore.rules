@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && (
+          exists(/databases/$(database)/documents/admins/$(request.auth.token.email)) ||
+          exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()))
+        )) ||
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'webadmin@mkdc.org.au')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidAdminId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-@\\.]+$');
+    }
+
+    function isValidBulletin(data) {
+      return data.keys().hasAll(['title', 'date', 'fileUrl']) &&
+             data.keys().hasOnly(['title', 'date', 'fileUrl', 'createdAt', 'updatedAt']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.date is string && data.date.size() <= 20 &&
+             data.fileUrl is string && data.fileUrl.size() <= 1000 &&
+             (!('createdAt' in data) || data.createdAt is number) &&
+             (!('updatedAt' in data) || data.updatedAt is number);
+    }
+
+    function isValidSermon(data) {
+      return data.keys().hasAll(['title', 'date', 'videoUrl', 'speaker']) &&
+             data.keys().hasOnly(['title', 'date', 'videoUrl', 'speaker', 'createdAt', 'updatedAt']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.date is string && data.date.size() <= 20 &&
+             data.videoUrl is string && data.videoUrl.size() <= 1000 &&
+             data.speaker is string && data.speaker.size() <= 100 &&
+             (!('createdAt' in data) || data.createdAt is number) &&
+             (!('updatedAt' in data) || data.updatedAt is number);
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email']) &&
+             data.keys().hasOnly(['email', 'name', 'createdAt', 'addedBy', 'uid']) &&
+             data.email is string && data.email.size() <= 120 &&
+             (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
+             (!('createdAt' in data) || data.createdAt is number) &&
+             (!('addedBy' in data) || (data.addedBy is string && data.addedBy.size() <= 120)) &&
+             (!('uid' in data) || (data.uid is string && data.uid.size() <= 128));
+    }
+
+    // Collection: Bulletins
+    match /bulletins/{bulletinId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(bulletinId) && isValidBulletin(request.resource.data);
+      allow update: if isAdmin() && isValidBulletin(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'date', 'fileUrl', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Collection: Sermons
+    match /sermons/{sermonId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidId(sermonId) && isValidSermon(request.resource.data);
+      allow update: if isAdmin() && isValidSermon(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'date', 'videoUrl', 'speaker', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // Collection: Admins
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow create: if (isAdmin() && isValidAdminId(adminId) && isValidAdmin(request.resource.data)) ||
+                      (isSignedIn() && adminId == request.auth.uid && request.auth.token.email != null &&
+                       exists(/databases/$(database)/documents/admins/$(request.auth.token.email)));
+      allow update: if isAdmin() && isValidAdmin(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'name', 'uid']);
+      allow delete: if isAdmin();
+    }
+  }
+}

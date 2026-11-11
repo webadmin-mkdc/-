@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "bulletins": {
+      "title": "Bulletin",
+      "description": "Church weekly bulletins",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "fileUrl": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["title", "date", "fileUrl", "createdAt"]
+    },
+    "sermons": {
+      "title": "Sermon",
+      "description": "Weekly sermons",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "videoUrl": { "type": "string" },
+        "speaker": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["title", "date", "videoUrl", "speaker", "createdAt"]
+    },
+    "admins": {
+      "title": "Admin",
+      "description": "Administrator users",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "addedBy": { "type": "string" }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "bulletins": {
+      "schema": "bulletins",
+      "description": "Collection of church bulletins"
+    },
+    "sermons": {
+      "schema": "sermons",
+      "description": "Collection of sermon videos"
+    },
+    "admins": {
+      "schema": "admins",
+      "description": "Collection of admin user IDs"
+    }
+  }
+}

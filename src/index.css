@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Crimson Pro", "Noto Serif KR", Georgia, serif;
+  
+  --color-brand-primary: #4A4A40;
+  --color-brand-accent: #A68966;
+  --color-brand-bg: #FAF9F6;
+  --color-brand-border: #E5E1D8;
+  --color-brand-text: #2D2D2D;
+  --color-brand-sub: #9A9A8B;
+  --color-brand-muted: #5C5C50;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-brand-text antialiased;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-serif;
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(-5%); }
+  50% { transform: translateY(0); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}

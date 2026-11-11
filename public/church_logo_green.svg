@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <defs>
+    <style>
+      @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&amp;display=swap');
+      .title-ko {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+        font-weight: 800;
+        font-size: 82px;
+        fill: #FFFFFF;
+        text-anchor: middle;
+        letter-spacing: -0.5px;
+      }
+      .sub-en {
+        font-family: 'Poppins', 'Pretendard', sans-serif;
+        font-weight: 400;
+        font-size: 40px;
+        fill: #FFFFFF;
+        text-anchor: middle;
+        letter-spacing: 0.8px;
+      }
+    </style>
+  </defs>
+
+  <!-- Background in official light olive/matcha green -->
+  <rect width="1000" height="1000" fill="#A5BC73" />
+
+  <!-- Logo Graphics Group -->
+  <g fill="#FFFFFF">
+    <!-- Left Person Head -->
+    <circle cx="419" cy="280" r="20" />
+
+    <!-- Right Person Head -->
+    <circle cx="559" cy="280" r="20" />
+
+    <!-- Left Figure Body (Curved Pillar & Arch) -->
+    <path d="M 384,498 
+             L 384,380 
+             C 384,330 412,305 450,305 
+             C 472,305 486,316 492,324
+             C 468,318 438,332 425,355
+             C 424,365 424,385 424,484
+             C 411,489 397,493 384,498 Z" />
+
+    <!-- Right Figure Body (Curved Pillar & Arch) -->
+    <path d="M 594,498 
+             L 594,380 
+             C 594,330 566,305 528,305 
+             C 506,305 492,316 486,324
+             C 510,318 540,332 553,355
+             C 554,365 554,385 554,484
+             C 567,489 581,493 594,498 Z" />
+
+    <!-- Latin Cross -->
+    <!-- Vertical Post -->
+    <rect x="481.5" y="336" width="15" height="132" rx="1.5" />
+    <!-- Horizontal Crossbar -->
+    <rect x="451" y="367" width="76" height="15" rx="1.5" />
+
+    <!-- S-curved Pathway to the Cross -->
+    <path d="M 425,548 
+             C 465,548 468,506 481,468 
+             L 497,468 
+             C 497,485 533,485 533,485 
+             C 525,510 495,532 470,548 
+             Z" />
+
+    <!-- Hill horizon sweeping curve - Left -->
+    <path d="M 285,542 
+             C 335,518 390,490 490,480 
+             C 405,492 345,522 285,542 Z" />
+
+    <!-- Hill horizon sweeping curve - Right -->
+    <path d="M 693,542 
+             C 643,518 588,490 488,480 
+             C 573,492 633,522 693,542 Z" />
+  </g>
+
+  <!-- Typography matching exact uploaded brand logo -->
+  <text x="500" y="682" class="title-ko">멜번제자교회</text>
+  <text x="500" y="728" class="sub-en">The Korean Disciple Church</text>
+</svg>
