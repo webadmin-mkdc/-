@@ -1846,7 +1846,7 @@ function AdminManager({ currentUser }: { currentUser: User }) {
           <p className="font-semibold text-brand-primary">새 관리자 등록 방법 안내:</p>
           <ol className="list-decimal list-inside space-y-1 text-brand-sub text-[11.5px]">
             <li>위 <strong className="text-brand-primary">ADD ADMIN</strong> 버튼을 누르고 새 관리자의 <strong>구글 이메일 주소</strong>를 입력하여 등록합니다.</li>
-            <li>등록된 관리자분이 상단 <strong className="text-brand-primary">ADMIN LOGIN</strong>에서 본인 구글 계정으로 로그인하면 즉시 관리자 권한이 부여됩니다.</li>
+            <li>등록된 관리자분이 사이트 하단(푸터)의 자물쇠 아이콘(또는 /admin 주소)을 통해 본인 구글 계정으로 로그인하면 즉시 관리자 권한이 부여됩니다.</li>
             <li>(복잡한 UID 복사 없이 이메일만으로 간편하게 등록됩니다.)</li>
           </ol>
         </div>

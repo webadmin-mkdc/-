@@ -72,13 +72,16 @@ function Navbar() {
               {item.name}
             </Link>
           ))}
-          <Link 
-            to="/admin" 
-            className="ml-1 lg:ml-4 px-3 lg:px-4 py-1.5 border border-brand-primary text-[10px] lg:text-[11px] rounded-full hover:bg-brand-primary hover:text-white transition-all uppercase tracking-wider whitespace-nowrap shrink-0 flex items-center gap-1.5"
-          >
-            {isAdmin && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
-            <span>{isAdmin ? 'ADMIN DASHBOARD' : (currentUser ? 'ADMIN' : 'ADMIN LOGIN')}</span>
-          </Link>
+          {/* Admin Dashboard Link - Only visible when logged in as Admin */}
+          {isAdmin && (
+            <Link 
+              to="/admin" 
+              className="ml-1 lg:ml-4 px-3 lg:px-4 py-1.5 border border-brand-primary text-[10px] lg:text-[11px] rounded-full hover:bg-brand-primary hover:text-white transition-all uppercase tracking-wider whitespace-nowrap shrink-0 flex items-center gap-1.5 shadow-xs"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              <span>ADMIN DASHBOARD</span>
+            </Link>
+          )}
         </div>
 
         {/* Mobile Toggle */}
@@ -109,13 +112,16 @@ function Navbar() {
                 {item.name}
               </Link>
             ))}
-            <Link
-              to="/admin"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-4 px-12 py-4 text-sm font-medium text-brand-sub"
-            >
-              {isAdmin ? 'ADMIN DASHBOARD (관리자 대시보드)' : (currentUser ? 'ADMIN (관리자)' : 'ADMIN LOGIN (관리자 로그인)')}
-            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-4 px-12 py-4 text-sm font-medium text-brand-accent bg-white/60 border-t border-brand-border/40"
+              >
+                <Lock className="w-4 h-4 text-brand-accent" />
+                <span>ADMIN DASHBOARD (관리자 대시보드)</span>
+              </Link>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -160,8 +166,15 @@ function Footer() {
             <a href="tel:0401800109" className="hover:text-brand-accent transition-colors">0401 800 109</a>
           </div>
         </div>
-        <div className="text-[10px] text-[#B2B2A5] italic text-center lg:text-right whitespace-nowrap">
-          © 2026 Melbourne Disciple Korean Church. All rights reserved.
+        <div className="flex items-center gap-3 text-[10px] text-[#B2B2A5] text-center lg:text-right whitespace-nowrap">
+          <span className="italic">© 2026 Melbourne Disciple Korean Church. All rights reserved.</span>
+          <Link 
+            to="/admin" 
+            title="관리자 로그인" 
+            className="text-[#B2B2A5]/60 hover:text-brand-accent transition-colors p-1"
+          >
+            <Lock className="w-3 h-3" />
+          </Link>
         </div>
       </div>
     </footer>
