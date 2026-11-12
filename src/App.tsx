@@ -51,7 +51,7 @@ function Navbar() {
               멜번제자교회
             </span>
             <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.1em] md:tracking-[0.14em] lg:tracking-[0.2em] text-brand-sub whitespace-nowrap">
-              Melbourne Disciple Korean Church
+              MELBOURNE KOREAN DISCIPLE CHURCH
             </span>
           </div>
         </Link>
@@ -146,7 +146,7 @@ function Footer() {
           </div>
           <div className="flex flex-wrap items-baseline gap-2 sm:gap-2.5">
             <h3 className="font-serif text-lg font-semibold text-brand-primary leading-tight whitespace-nowrap">멜번제자교회</h3>
-            <p className="text-[10.5px] uppercase tracking-wider text-brand-sub whitespace-nowrap">Melbourne Disciple Korean Church</p>
+            <p className="text-[10.5px] uppercase tracking-wider text-brand-sub whitespace-nowrap">MELBOURNE KOREAN DISCIPLE CHURCH</p>
           </div>
         </div>
         <div className="flex flex-col gap-1.5 text-[11.5px] text-brand-sub">
@@ -167,7 +167,7 @@ function Footer() {
           </div>
         </div>
         <div className="flex items-center gap-3 text-[10px] text-[#B2B2A5] text-center lg:text-right whitespace-nowrap">
-          <span className="italic">© 2026 Melbourne Disciple Korean Church. All rights reserved.</span>
+          <span className="italic">© 2026 MELBOURNE KOREAN DISCIPLE CHURCH. All rights reserved.</span>
           <Link 
             to="/admin" 
             title="관리자 로그인" 

@@ -126,7 +126,7 @@ export default function About() {
           className="h-[1px] bg-brand-accent mx-auto mb-6"
         ></motion.div>
         <span className="text-[11px] font-bold text-brand-accent uppercase tracking-[0.25em] mb-3 block">
-          Melbourne Disciple Korean Church
+          MELBOURNE KOREAN DISCIPLE CHURCH
         </span>
         <motion.h2 
           initial={{ opacity: 0, y: 10 }}
@@ -390,7 +390,7 @@ export default function About() {
 
               <div className="pt-6 sm:pt-8 border-t border-brand-border flex flex-col items-end text-right not-italic">
                  <p className="font-serif text-xl md:text-2xl font-bold text-brand-primary">이치형 담임목사</p>
-                 <p className="text-[11px] uppercase tracking-[0.2em] text-brand-sub mt-1">Melbourne Disciple Korean Church</p>
+                 <p className="text-[11px] uppercase tracking-[0.2em] text-brand-sub mt-1">MELBOURNE KOREAN DISCIPLE CHURCH</p>
               </div>
             </div>
           </div>

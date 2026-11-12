@@ -129,11 +129,11 @@ export default function Sermons() {
     : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-12 py-24">
-      <div className="mb-20">
-        <span className="text-[11px] font-bold text-brand-accent uppercase tracking-widest mb-4 block">Media Archive</span>
-        <h2 className="text-4xl font-serif text-brand-primary tracking-tight italic">설교 말씀</h2>
-        <div className="mt-4 w-12 h-[1px] bg-brand-border"></div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-10 sm:py-16 md:py-24">
+      <div className="mb-10 sm:mb-16 md:mb-20">
+        <span className="text-[11px] font-bold text-brand-accent uppercase tracking-widest mb-2 sm:mb-4 block">Media Archive</span>
+        <h2 className="text-3xl sm:text-4xl font-serif text-brand-primary tracking-tight italic">설교 말씀</h2>
+        <div className="mt-3 sm:mt-4 w-12 h-[1px] bg-brand-border"></div>
       </div>
 
       {loading ? (
