@@ -181,9 +181,57 @@ function Footer() {
   );
 }
 
+function SeoSync() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const origin = window.location.origin;
+    const canonicalUrl = origin + location.pathname;
+    const logoUrl = origin + '/icon-512x512.png';
+
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalUrl;
+
+    const setMeta = (attr: 'property' | 'name', key: string, content: string) => {
+      let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.content = content;
+    };
+
+    setMeta('property', 'og:url', canonicalUrl);
+    setMeta('property', 'og:image', logoUrl);
+    setMeta('name', 'twitter:image', logoUrl);
+
+    const ldScript = document.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
+    if (ldScript && ldScript.textContent) {
+      try {
+        const data = JSON.parse(ldScript.textContent);
+        data.url = origin;
+        data.logo = logoUrl;
+        data.image = logoUrl;
+        ldScript.textContent = JSON.stringify(data);
+      } catch {
+        // Ignore JSON parse issues
+      }
+    }
+  }, [location.pathname]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <Router>
+      <SeoSync />
       <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-blue-100">
         <Navbar />
         <main className="pt-16">
