@@ -213,7 +213,7 @@ export default function About() {
               )}
             </div>
             <p className="text-[11px] text-brand-sub text-center mt-2.5 font-light tracking-wide">
-              사역자
+              교역자
             </p>
           </div>
 
